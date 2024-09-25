@@ -10,11 +10,17 @@ const Dashboard = () => {
   const [widths, setWidths] = useState(Array(16).fill(250));
   const [heights, setHeights] = useState(Array(16).fill(125));
   const [dropdowns, setDropdowns] = useState(Array(16).fill(false));
+  const [titles, setTitles] = useState(Array(16).fill("Title"));
+  const [savedComponents, setSavedComponents] = useState([]);
 
-  const addComponent = (index, component) => {
+  const addComponent = (index, component, title) => {
     const newComponents = [...components];
     newComponents[index] = component;
     setComponents(newComponents);
+
+    const newTitles = [...titles];
+    newTitles[index] = title;
+    setTitles(newTitles);
   };
 
   const toggleDropdown = (index) => {
@@ -32,6 +38,83 @@ const Dashboard = () => {
     setHeights(newHeights);
   };
 
+  const handleTitleChange = (index, event) => {
+    const newTitles = [...titles];
+    newTitles[index] = event.target.value;
+    setTitles(newTitles);
+  };
+
+  const saveComponent = (index) => {
+    const componentToSave = components[index];
+    const titleToSave = titles[index];
+    let stateToSave = null;
+
+    if (componentToSave && (componentToSave.type === ProgressBar || componentToSave.type === ToDoList)) {
+      stateToSave = componentToSave.props.initialState;
+    }
+
+    setSavedComponents((prevSavedComponents) => [
+      ...prevSavedComponents,
+      { component: componentToSave, title: titleToSave, state: stateToSave },
+    ]);
+
+    setComponents((prevComponents) => {
+      const newComponents = [...prevComponents];
+      newComponents[index] = null;
+      return newComponents;
+    });
+
+    setTitles((prevTitles) => {
+      const newTitles = [...prevTitles];
+      newTitles[index] = "Title";
+      return newTitles;
+    });
+  };
+
+  const restoreComponent = (savedIndex) => {
+    const { component, title, state } = savedComponents[savedIndex];
+
+    const emptyIndex = components.findIndex(comp => comp === null);
+    if (emptyIndex === -1) {
+      alert("No empty slots available to restore the component.");
+      return;
+    }
+
+    setComponents((prevComponents) => {
+      const newComponents = [...prevComponents];
+      if (component && (component.type === ProgressBar || component.type === ToDoList)) {
+        newComponents[emptyIndex] = React.cloneElement(component, {
+          initialState: state,
+          onStateChange: (newState) => {
+            setComponents(prevComponents => {
+              const updatedComponents = [...prevComponents];
+              updatedComponents[emptyIndex] = React.cloneElement(
+                updatedComponents[emptyIndex],
+                { initialState: newState }
+              );
+              return updatedComponents;
+            });
+          }
+        });
+      } else {
+        newComponents[emptyIndex] = component;
+      }
+      return newComponents;
+    });
+
+    setTitles((prevTitles) => {
+      const newTitles = [...prevTitles];
+      newTitles[emptyIndex] = title;
+      return newTitles;
+    });
+
+    setSavedComponents((prevSavedComponents) => {
+      const newSavedComponents = [...prevSavedComponents];
+      newSavedComponents.splice(savedIndex, 1);
+      return newSavedComponents;
+    });
+  };
+
   return (
     <div className="dashboard">
       <h1>Remote Workers Dashboard</h1>
@@ -47,6 +130,7 @@ const Dashboard = () => {
               className={`flex-item ${component ? "filled" : ""}`}
               onClick={() => toggleDropdown(index)}
             >
+              <div className="title">{titles[index]}</div>
               {component ? (
                 component
               ) : (
@@ -55,18 +139,76 @@ const Dashboard = () => {
               {dropdowns[index] && (
                 <div className="dropdown">
                   <div className="dropdown-content">
-                    <a onClick={() => addComponent(index, "Calendar")}>Calendar</a>
-                    <a onClick={() => addComponent(index, "Tasks")}>Tasks</a>
-                    <a onClick={() => addComponent(index, "Messages")}>Messages</a>
-                    <a onClick={() => addComponent(index, "Files")}>Files</a>
-                    <a onClick={() => addComponent(index, "Notes")}>Notes</a>
-                    <a onClick={() => addComponent(index, <ProgressBar />)}>Progress Bar</a>
-                    <a onClick={() => addComponent(index, <ToDoList />)}>To Do List</a>
+                    <input
+                      type="text"
+                      value={titles[index]}
+                      onChange={(event) => handleTitleChange(index, event)}
+                      placeholder="Enter a title"
+                    />
+                    <a onClick={() => addComponent(index, "Calendar", "Calendar")}>
+                      Calendar
+                    </a>
+                    <a onClick={() => addComponent(index, "Tasks", "Tasks")}>
+                      Tasks
+                    </a>
+                    <a onClick={() => addComponent(index, "Messages", "Messages")}>
+                      Messages
+                    </a>
+                    <a onClick={() => addComponent(index, "Files", "Files")}>
+                      Files
+                    </a>
+                    <a onClick={() => addComponent(index, "Notes", "Notes")}>
+                      Notes
+                    </a>
+                    <a onClick={() => addComponent(index, 
+                      <ProgressBar 
+                        initialState={{goal: 0, progress: 0}} 
+                        onStateChange={(newState) => {
+                          setComponents(prevComponents => {
+                            const updatedComponents = [...prevComponents];
+                            updatedComponents[index] = React.cloneElement(
+                              updatedComponents[index],
+                              { initialState: newState }
+                            );
+                            return updatedComponents;
+                          });
+                        }} 
+                      />, 
+                      "Progress Bar")}>
+                      Progress Bar
+                    </a>
+                    <a onClick={() => addComponent(index, 
+                      <ToDoList 
+                        initialState={{tasks: []}} 
+                        onStateChange={(newState) => {
+                          setComponents(prevComponents => {
+                            const updatedComponents = [...prevComponents];
+                            updatedComponents[index] = React.cloneElement(
+                              updatedComponents[index],
+                              { initialState: newState }
+                            );
+                            return updatedComponents;
+                          });
+                        }} 
+                      />, 
+                      "To Do List")}>
+                      To Do List
+                    </a>
+                    <a onClick={() => saveComponent(index)}>Save and Delete</a>
                   </div>
                 </div>
               )}
             </div>
           </ResizableBox>
+        ))}
+      </div>
+      <div className="saved-components">
+        <h2>Saved Components</h2>
+        {savedComponents.map((savedComponent, index) => (
+          <div key={index} className="saved-component">
+            <span>{savedComponent.title}</span>
+            <a onClick={() => restoreComponent(index)}>Restore</a>
+          </div>
         ))}
       </div>
     </div>

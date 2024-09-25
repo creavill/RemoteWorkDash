@@ -1,8 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-const ToDoList = () => {
-  const [tasks, setTasks] = useState([]);
+const ToDoList = ({ initialState, onStateChange }) => {
+  const [tasks, setTasks] = useState(initialState.tasks || []);
   const [newTask, setNewTask] = useState("");
+
+  const updateState = useCallback(() => {
+    onStateChange({ tasks });
+  }, [tasks, onStateChange]);
+
+  useEffect(() => {
+    updateState();
+  }, [updateState]);
 
   const addTask = () => {
     if (newTask.trim() !== "") {

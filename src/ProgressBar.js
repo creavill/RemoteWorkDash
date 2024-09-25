@@ -1,11 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
-const ProgressBar = () => {
-  const [goal, setGoal] = useState(0);
-  const [progress, setProgress] = useState(0);
+const ProgressBar = ({ initialState, onStateChange }) => {
+  const [goal, setGoal] = useState(initialState.goal);
+  const [progress, setProgress] = useState(initialState.progress);
+
+  const updateState = useCallback(() => {
+    onStateChange({ goal, progress });
+  }, [goal, progress, onStateChange]);
+
+  useEffect(() => {
+    updateState();
+  }, [updateState]);
 
   const incrementProgress = () => {
-    setProgress((prevProgress) => (prevProgress < goal ? prevProgress + 1 : prevProgress));
+    setProgress((prevProgress) => {
+      const newProgress = prevProgress < goal ? prevProgress + 1 : prevProgress;
+      return newProgress;
+    });
+  };
+
+  const handleGoalChange = (e) => {
+    const newGoal = parseInt(e.target.value) || 0;
+    setGoal(newGoal);
+    // Ensure progress doesn't exceed the new goal
+    setProgress((prevProgress) => Math.min(prevProgress, newGoal));
   };
 
   return (
@@ -13,10 +31,10 @@ const ProgressBar = () => {
       <input
         type="number"
         value={goal}
-        onChange={(e) => setGoal(parseInt(e.target.value))}
+        onChange={handleGoalChange}
         placeholder="Goal"
       />
-      <div className="progress" style={{ width: `${progress}%` }}></div>
+      <div className="progress" style={{ width: `${goal > 0 ? (progress / goal) * 100 : 0}%` }}></div>
       <button onClick={incrementProgress}>Increment</button>
       <div>{progress}/{goal}</div>
     </div>
